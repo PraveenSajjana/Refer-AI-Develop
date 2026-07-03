@@ -9,11 +9,13 @@ const authRoutes = require('./routes/auth');
 const jobRoutes = require('./routes/jobs');
 const profileRoutes = require('./routes/profiles');
 const referralRoutes = require('./routes/referrals');
-const assessmentRoutes = require('./routes/analytics');
+const assessmentRoutes = require('./routes/assessments');
+const analyticsRoutes = require('./routes/analytics');
 const interviewRoutes = require('./routes/interviews');
 const resumeRoutes = require('./routes/resume');
 const communityRoutes = require('./routes/community');
 const internshipRoutes = require('./routes/internships');
+const badgeRoutes = require('./routes/badges');
 
 const app = express();
 
@@ -42,10 +44,12 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/profiles', profileRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/assessments', assessmentRoutes);
+app.use('/api/analytics', analyticsRoutes);
 app.use('/api/interviews', interviewRoutes);
 app.use('/api/resume', resumeRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/internships', internshipRoutes);
+app.use('/api/badges', badgeRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

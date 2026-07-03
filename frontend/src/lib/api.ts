@@ -89,6 +89,16 @@ export const authApi = {
     return res;
   },
 
+
+  async logout() {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore errors on logout
+    }
+    api.clearAuthToken();
+  },
+
   async getCurrentUser() {
     return api.get<any>('/auth/me');
   },
@@ -97,10 +107,11 @@ export const authApi = {
     return api.put<any>('/auth/me', data);
   },
 
-  logout() {
+  clearToken() {
     api.clearAuthToken();
   },
 };
+
 
 // Jobs API
 export const jobsApi = {
@@ -329,9 +340,21 @@ export const badgesApi = {
   },
 };
 
+
 // Analytics API
 export const analyticsApi = {
   async getStats() {
-    return api.get<{ users: number; jobs: number; referrals: number; companies: number }>('/analytics/stats');
+    return api.get<{
+      totals: { users: number; jobs: number; referrals: number; companies: number };
+      usersByRole: { candidates: number; employees: number; recruiters: number; students: number };
+      referralStatuses: Record<string, number>;
+      recentActivity: { newUsersWeek: number; newReferralsWeek: number };
+      topCompanies: Array<{ name: string; referral_count: number }>;
+      monthlyGrowth: Array<{ month: string; users: number }>;
+    }>('/analytics/stats');
+  },
+
+  async getPublicStats() {
+    return api.get<{ users: number; jobs: number; companies: number }>('/analytics/public');
   },
 };

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from '../lib/router';
 import { useAuth } from '../contexts/AuthContext';
-import { profilesApi, referralsApi } from '../lib/api';
+import { profilesApi, referralsApi, analyticsApi } from '../lib/api';
 import {
   TrendingUp, Users, Briefcase, Target, FileText, MessageSquare,
   ArrowRight, Award, Zap, Star, CheckCircle, Clock, Bell,
-  BarChart2, Building2, GraduationCap, Search
+  BarChart2, Building2, GraduationCap, Search, Activity, Loader2
 } from 'lucide-react';
+
 
 function ScoreRing({ score, label, color }: { score: number; label: string; color: string }) {
   const r = 36;
@@ -326,13 +327,35 @@ function StudentDashboard({ user }: { user: any }) {
 }
 
 function AdminDashboard({ user }: { user: any }) {
-  const [stats, setStats] = useState({ users: 0, jobs: 0, referrals: 0, companies: 0 });
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totals: { users: 0, jobs: 0, referrals: 0, companies: 0 },
+    usersByRole: { candidates: 0, employees: 0, recruiters: 0, students: 0 },
+    referralStatuses: {} as Record<string, number>,
+    recentActivity: { newUsersWeek: 0, newReferralsWeek: 0 },
+    topCompanies: [] as Array<{ name: string; referral_count: number }>,
+    monthlyGrowth: [] as Array<{ month: string; users: number }>,
+  });
 
   useEffect(() => {
-    // In a real app, this would be a dedicated stats endpoint
-    // For now, we'll use placeholder values
-    setStats({ users: 5, jobs: 0, referrals: 0, companies: 10 });
+    analyticsApi.getStats().then(data => {
+      setStats(data);
+      setLoading(false);
+    }).catch(err => {
+      console.error('Failed to fetch stats:', err);
+      setLoading(false);
+    });
   }, []);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+      </div>
+    );
+  }
+
+  const maxUsers = Math.max(...stats.monthlyGrowth.map(d => d.users), 1);
 
   return (
     <div className="space-y-8">
@@ -340,20 +363,102 @@ function AdminDashboard({ user }: { user: any }) {
         <h1 className="text-2xl font-bold text-white mb-1">Admin Dashboard</h1>
         <p className="text-slate-400">Platform overview and management.</p>
       </div>
+
+      {/* Main Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Users', value: stats.users, icon: Users, color: 'blue' },
-          { label: 'Active Jobs', value: stats.jobs, icon: Briefcase, color: 'emerald' },
-          { label: 'Referrals', value: stats.referrals, icon: TrendingUp, color: 'amber' },
-          { label: 'Companies', value: stats.companies, icon: Building2, color: 'rose' },
-        ].map(({ label, value, icon: Icon, color }) => (
+          { label: 'Total Users', value: stats.totals.users, icon: Users, color: 'blue', trend: `+${stats.recentActivity.newUsersWeek} this week` },
+          { label: 'Active Jobs', value: stats.totals.jobs, icon: Briefcase, color: 'emerald' },
+          { label: 'Referrals', value: stats.totals.referrals, icon: TrendingUp, color: 'amber', trend: `+${stats.recentActivity.newReferralsWeek} this week` },
+          { label: 'Companies', value: stats.totals.companies, icon: Building2, color: 'rose' },
+        ].map(({ label, value, icon: Icon, color, trend }) => (
           <div key={label} className={`bg-${color}-500/10 border border-${color}-500/20 rounded-2xl p-5`}>
             <Icon className={`w-6 h-6 text-${color}-400 mb-3`} />
             <div className="text-3xl font-bold text-white mb-1">{value}</div>
             <div className="text-slate-400 text-sm">{label}</div>
+            {trend && <div className="text-emerald-400 text-xs mt-1">{trend}</div>}
           </div>
         ))}
       </div>
+
+      {/* Users by Role */}
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
+        <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5 text-blue-400" /> Users by Role
+        </h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[
+            { label: 'Candidates', value: stats.usersByRole.candidates, color: 'blue' },
+            { label: 'Employees', value: stats.usersByRole.employees, color: 'emerald' },
+            { label: 'Recruiters', value: stats.usersByRole.recruiters, color: 'amber' },
+            { label: 'Students', value: stats.usersByRole.students, color: 'violet' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-white/5 rounded-xl p-4 text-center">
+              <div className={`text-2xl font-bold text-${color}-400`}>{value}</div>
+              <div className="text-slate-400 text-sm">{label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Referral Status & Growth */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
+          <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+            <Activity className="w-5 h-5 text-amber-400" /> Referral Status Breakdown
+          </h3>
+          <div className="space-y-3">
+            {Object.entries(stats.referralStatuses).length > 0 ? Object.entries(stats.referralStatuses).map(([status, count]) => {
+              const statusColors: Record<string, string> = {
+                requested: 'bg-amber-500',
+                accepted: 'bg-blue-500',
+                rejected: 'bg-rose-500',
+                referred: 'bg-cyan-500',
+                shortlisted: 'bg-violet-500',
+                interview: 'bg-amber-500',
+                offer: 'bg-emerald-500',
+                hired: 'bg-emerald-500',
+              };
+              const total = Object.values(stats.referralStatuses).reduce((a, b) => a + b, 0);
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={status} className="flex items-center gap-3">
+                  <div className={`w-3 h-3 rounded-full ${statusColors[status] || 'bg-slate-500'}`} />
+                  <span className="text-slate-300 text-sm capitalize flex-1">{status}</span>
+                  <span className="text-white font-medium">{count}</span>
+                  <span className="text-slate-500 text-xs w-12 text-right">{pct}%</span>
+                </div>
+              );
+            }) : (
+              <p className="text-slate-500 text-sm">No referral data yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-6">
+          <h3 className="text-white font-bold mb-4 flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-blue-400" /> User Growth (6 months)
+          </h3>
+          {stats.monthlyGrowth.length > 0 ? (
+            <div className="flex items-end gap-2 h-32">
+              {stats.monthlyGrowth.map(({ month, users }) => (
+                <div key={month} className="flex-1 flex flex-col items-center gap-1">
+                  <div className="text-slate-400 text-xs font-mono">{users}</div>
+                  <div
+                    className="w-full bg-blue-500/80 rounded-t transition-all hover:bg-blue-400"
+                    style={{ height: `${(users / maxUsers) * 80}px` }}
+                  />
+                  <div className="text-slate-500 text-xs">{month}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-slate-500 text-sm">No growth data yet</p>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Links */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Link to="/analytics" className="bg-slate-900 border border-white/10 rounded-2xl p-6 hover:border-blue-500/30 transition-all group">
           <BarChart2 className="w-8 h-8 text-blue-400 mb-3 group-hover:scale-110 transition-transform" />
@@ -369,6 +474,7 @@ function AdminDashboard({ user }: { user: any }) {
     </div>
   );
 }
+
 
 export default function DashboardPage() {
   const { user } = useAuth();
