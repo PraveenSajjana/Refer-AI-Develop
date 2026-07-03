@@ -16,10 +16,10 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { error } = await signIn(email, password);
+    const result = await signIn(email, password);
     setLoading(false);
-    if (error) {
-      setError(error);
+    if (result.error) {
+      setError(result.error);
     } else {
       navigate('/dashboard');
     }

@@ -2,14 +2,14 @@ const API_BASE = 'http://localhost:3001/api';
 
 class ApiClient {
   private getToken(): string | null {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem('token');
   }
 
   private setToken(token: string | null) {
     if (token) {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
     } else {
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
     }
   }
 

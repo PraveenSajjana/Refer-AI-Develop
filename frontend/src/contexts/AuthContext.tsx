@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = sessionStorage.getItem('token');
     if (token) {
       authApi.getCurrentUser()
         .then(userData => {
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setSession({ user: userData });
         })
         .catch(() => {
-          localStorage.removeItem('token');
+          sessionStorage.removeItem('token');
           setUser(null);
           setSession(null);
         })
@@ -72,7 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function signOut() {
-    authApi.logout();
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore errors
+    }
+    sessionStorage.removeItem('token');
     setUser(null);
     setSession(null);
   }

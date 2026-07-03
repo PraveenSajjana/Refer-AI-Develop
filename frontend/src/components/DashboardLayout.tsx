@@ -5,7 +5,8 @@ import {
   Briefcase, LayoutDashboard, User, Users, Search, FileText,
   MessageSquare, Award, Bell, Settings, LogOut, Menu, X,
   ChevronDown, TrendingUp, Building2, GraduationCap, BarChart2,
-  Zap, Target, BookOpen
+  Zap, Target, BookOpen,
+  AlertTriangle
 } from 'lucide-react';
 
 interface NavItem {
@@ -38,11 +39,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const visibleNav = NAV_ITEMS.filter(item => user && item.roles.includes(user.role));
 
-  async function handleSignOut() {
+  async function confirmSignOut() {
     await signOut();
+    setShowLogoutModal(false);
     navigate('/');
   }
 
@@ -56,6 +59,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
+
+      {showLogoutModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
+                <AlertTriangle className="w-5 h-5 text-red-400" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Sign Out?</h3>
+                <p className="text-slate-400 text-sm">Are you sure you want to sign out?</p>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowLogoutModal(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl transition-all">
+                Cancel
+              </button>
+              <button onClick={confirmSignOut} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 rounded-xl transition-all">
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -129,7 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="text-amber-400 font-bold">{user.points}</span>
             </div>
             <button
-              onClick={handleSignOut}
+              onClick={() => setShowLogoutModal(true)}
               className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-white hover:bg-white/5 transition-all"
             >
               <LogOut className="w-4 h-4" />
@@ -152,7 +179,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             <div className="hidden sm:block">
               <h1 className="text-white font-semibold text-lg capitalize">
-                {currentPath.replace('/','').replace(/-/g, ' ') || 'Dashboard'}
+                {currentPath.replace('/', '').replace(/-/g, ' ') || 'Dashboard'}
               </h1>
             </div>
           </div>
