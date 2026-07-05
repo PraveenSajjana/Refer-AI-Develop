@@ -70,26 +70,28 @@ export default function ResumePage() {
   }, [user]);
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
-    setFileName(file.name);
-    setUploading(true);
-    await new Promise(r => setTimeout(r, 1000));
+  const file = e.target.files?.[0];
+  if (!file || !user) return;
+
+  // setError('');
+  setFileName(file.name);
+  setUploading(true);
+
+  try {
     setUploading(false);
     setAnalyzing(true);
-    await new Promise(r => setTimeout(r, 2500));
-    try {
-      const data = await resumeApi.create(MOCK_ANALYSIS);
-      if (data) {
-        setAnalysis(data);
-        await profilesApi.saveCandidate({ resume_score: MOCK_ANALYSIS.resume_score, ats_score: MOCK_ANALYSIS.ats_score });
-      }
-    } catch (error) {
-      console.error('Failed to save resume analysis:', error);
-    }
-    setAnalyzing(false);
+
+    const data = await resumeApi.upload(file);  // ← Real API call
+    setAnalysis(data);
     setActiveTab('ats');
+  } catch (err: any) {
+    // setError(err.message || 'Failed to analyze resume');
+  } finally {
+    setUploading(false);
+    setAnalyzing(false);
   }
+}
+
 
   const TABS: { id: 'upload' | 'ats' | 'suggestions'; label: string; disabled?: boolean }[] = [
     { id: 'upload', label: 'Upload Resume' },

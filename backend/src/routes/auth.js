@@ -26,6 +26,17 @@ router.post('/register', async (req, res) => {
       [id, email, password_hash, full_name, role]
     );
 
+    // In register route after inserting user:
+if (role === 'employee') {
+  console.log('Creating employee profile for user ID:', id, role);
+  await pool.query(
+    `INSERT INTO employee_profiles (id, user_id, trust_score, total_referrals, successful_referrals)
+     VALUES (UUID(), ?, 50, 0, 0)`,
+    [id]
+  );
+}
+
+
     const token = generateToken({ id, email, role });
 
     res.status(201).json({

@@ -252,6 +252,8 @@ export const referralsApi = {
 
   async getEmployees(params?: { search?: string }) {
     const query = params?.search ? `?search=${params.search}` : '';
+    console.log("queryquery: ", query);
+    
     return api.get<any[]>(`/referrals/employees${query}`);
   },
 };
@@ -299,7 +301,32 @@ export const resumeApi = {
   async create(data: any) {
     return api.post<any>('/resume', data);
   },
+
+  async upload(file: File) {
+    const formData = new FormData();
+    formData.append('resume', file);
+    const token = sessionStorage.getItem('token');
+    const res = await fetch(`${API_BASE}/resume/upload`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.error || 'Failed to upload resume');
+    }
+    return data;
+  },
+
+  async getLatest() {
+    return api.get<any>('/resume/latest');
+  },
+
+  async delete(id: string) {
+    return api.delete(`/resume/${id}`);
+  },
 };
+
 
 // Community API
 export const communityApi = {

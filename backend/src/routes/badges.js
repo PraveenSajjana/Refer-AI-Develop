@@ -4,11 +4,25 @@ const { pool } = require('../config/database');
 const { authMiddleware } = require('../middleware/auth');
 const { v4: uuidv4 } = require('uuid');
 
+// Badge type to display name mapping
+const BADGE_NAMES = {
+  first_referral: 'First Referral',
+  profile_complete: 'Profile Complete',
+  resume_uploaded: 'Resume Uploaded',
+  mock_interview: 'Mock Interview',
+  assessment_passed: 'Assessment Passed',
+  referral_accepted: 'Referral Accepted',
+  hired: 'Hired',
+  community_contributor: 'Community Contributor',
+  top_scorer: 'Top Scorer',
+  referral_readiness_75: 'Referral Ready',
+};
+
 // Get user's earned badges
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const [badges] = await pool.query(
-      'SELECT * FROM user_badges WHERE user_id = ? ORDER BY earned_at DESC',
+      'SELECT * FROM user_badges WHERE user_id = ? ORDER BY awarded_at DESC',
       [req.user.id]
     );
     res.json(badges);
@@ -34,9 +48,11 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     const id = uuidv4();
+    const badge_name = BADGE_NAMES[badge_type] || badge_type;
+
     await pool.query(
-      'INSERT INTO user_badges (id, user_id, badge_type, earned_at) VALUES (?, ?, ?, NOW())',
-      [id, req.user.id, badge_type]
+      'INSERT INTO user_badges (id, user_id, badge_type, badge_name, awarded_at) VALUES (?, ?, ?, ?, NOW())',
+      [id, req.user.id, badge_type, badge_name]
     );
 
     // Award points based on badge type

@@ -4,17 +4,8 @@ import { referralsApi } from '../lib/api';
 import {
   Users, Search, Filter, MessageSquare, CheckCircle, XCircle,
   Clock, ArrowRight, Star, Building2, Briefcase, Loader2,
-  TrendingUp, Send, ChevronDown
+  TrendingUp, Send, ChevronDown, Award
 } from 'lucide-react';
-
-const MOCK_EMPLOYEES = [
-  { id: 'e1', name: 'Priya Sharma', company: 'Google', role: 'SDE-2', trust_score: 92, referrals: 12, placed: 8, skills: ['React', 'Node.js', 'GCP'], avatar: 'P' },
-  { id: 'e2', name: 'Rahul Mehta', company: 'Microsoft', role: 'Principal Engineer', trust_score: 88, referrals: 7, placed: 5, skills: ['C#', '.NET', 'Azure'], avatar: 'R' },
-  { id: 'e3', name: 'Ananya Kumar', company: 'Amazon', role: 'SDE-3', trust_score: 95, referrals: 15, placed: 11, skills: ['Java', 'AWS', 'Microservices'], avatar: 'A' },
-  { id: 'e4', name: 'Vikram Nair', company: 'Flipkart', role: 'Tech Lead', trust_score: 85, referrals: 9, placed: 6, skills: ['Kotlin', 'Android', 'Firebase'], avatar: 'V' },
-  { id: 'e5', name: 'Deepa Iyer', company: 'Razorpay', role: 'Staff Engineer', trust_score: 90, referrals: 11, placed: 9, skills: ['Go', 'Payments', 'Kafka'], avatar: 'D' },
-  { id: 'e6', name: 'Arjun Pillai', company: 'PhonePe', role: 'Senior Engineer', trust_score: 87, referrals: 8, placed: 7, skills: ['Python', 'ML', 'Fintech'], avatar: 'A' },
-];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
   requested: { label: 'Requested', color: 'bg-amber-500/20 text-amber-300' },
@@ -31,11 +22,22 @@ const REFERRAL_STAGES = ['requested', 'accepted', 'referred', 'shortlisted', 'in
 
 function RequestModal({ employee, onClose, onSubmit }: { employee: any; onClose: () => void; onSubmit: (msg: string) => void }) {
   const [message, setMessage] = useState('');
+  const employeeName = employee.full_name || employee.name || 'Employee';
+  const employeeRole = employee.designation || employee.role || '';
+  const employeeCompany = employee.company || '';
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
       <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full">
-        <h3 className="text-white font-bold text-lg mb-2">Request Referral from {employee.name}</h3>
-        <p className="text-slate-400 text-sm mb-4">{employee.role} at {employee.company}</p>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold text-lg">
+            {employeeName.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <h3 className="text-white font-bold text-lg">Request Referral from {employeeName}</h3>
+            <p className="text-slate-400 text-sm">{employeeRole} at {employeeCompany}</p>
+          </div>
+        </div>
         <label className="text-slate-300 text-sm font-medium mb-2 block">Message (optional)</label>
         <textarea
           value={message}
@@ -62,10 +64,14 @@ export default function ReferralsPage() {
   const [tab, setTab] = useState<'find' | 'my_requests' | 'manage'>('find');
   const [search, setSearch] = useState('');
   const [requests, setRequests] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [selectedEmployee, setSelectedEmployee] = useState<any>(null);
   const [sending, setSending] = useState<string | null>(null);
   const [loadingRequests, setLoadingRequests] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [newBadge, setNewBadge] = useState<any>(null);
 
+  // Load referral requests
   useEffect(() => {
     if (!user) return;
     setLoadingRequests(true);
@@ -78,14 +84,34 @@ export default function ReferralsPage() {
     });
   }, [user]);
 
+  // Load employees for "Find Referrers" tab
+  useEffect(() => {
+    if (!user || user.role === 'employee') return;
+    setLoadingEmployees(true);
+    referralsApi.getEmployees(search ? { search } : undefined).then(data => {
+      setEmployees(data || []);
+      setLoadingEmployees(false);
+    }).catch(() => {
+      setEmployees([]);
+      setLoadingEmployees(false);
+    });
+  }, [user, search]);
+
   async function sendReferralRequest(message: string) {
     if (!user || !selectedEmployee) return;
     setSending(selectedEmployee.id);
     try {
-      await referralsApi.create({
+      const result = await referralsApi.create({
         employee_id: selectedEmployee.id,
         candidate_message: message,
       });
+      // Add to requests list
+      setRequests(prev => [result, ...prev]);
+      // Show badge notification if awarded
+      if (result.badge_awarded) {
+        setNewBadge(result.badge_awarded);
+        setTimeout(() => setNewBadge(null), 4000);
+      }
     } catch (error) {
       console.error('Failed to send referral request:', error);
     }
@@ -103,16 +129,23 @@ export default function ReferralsPage() {
     }
   }
 
-  const filtered = MOCK_EMPLOYEES.filter(e =>
-    e.name.toLowerCase().includes(search.toLowerCase()) ||
-    e.company.toLowerCase().includes(search.toLowerCase()) ||
-    e.skills.some(s => s.toLowerCase().includes(search.toLowerCase()))
-  );
-
   const isEmployee = user?.role === 'employee';
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {/* Badge notification toast */}
+      {newBadge && (
+        <div className="fixed top-4 right-4 z-50 bg-gradient-to-r from-amber-500/20 to-yellow-500/20 border border-amber-500/30 rounded-xl p-4 flex items-center gap-3 animate-in slide-in-from-right duration-300">
+          <div className="w-10 h-10 rounded-full bg-amber-500/30 flex items-center justify-center">
+            <Award className="w-5 h-5 text-amber-400" />
+          </div>
+          <div>
+            <p className="text-white font-semibold text-sm">Badge Earned!</p>
+            <p className="text-amber-300 text-xs">{newBadge.badge_name} (+{newBadge.points} pts)</p>
+          </div>
+        </div>
+      )}
+
       <div>
         <h1 className="text-2xl font-bold text-white">Referrals</h1>
         <p className="text-slate-400 text-sm mt-1">
@@ -136,58 +169,79 @@ export default function ReferralsPage() {
                 type="text"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search by name, company, or skill..."
+                placeholder="Search by name, company, or designation..."
                 className="w-full bg-slate-900 border border-white/10 rounded-xl pl-11 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
               />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {filtered.map(emp => (
-              <div key={emp.id} className="bg-slate-900 border border-white/10 hover:border-blue-500/30 rounded-2xl p-5 transition-all group">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold text-lg">
-                      {emp.avatar}
-                    </div>
-                    <div>
-                      <div className="text-white font-semibold">{emp.name}</div>
-                      <div className="text-slate-400 text-sm">{emp.role}</div>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Building2 className="w-3 h-3 text-slate-500" />
-                        <span className="text-slate-400 text-xs">{emp.company}</span>
+          {loadingEmployees ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
+            </div>
+          ) : employees.length === 0 ? (
+            <div className="text-center py-16 bg-slate-900 border border-white/10 rounded-2xl">
+              <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <h3 className="text-white font-semibold mb-2">No employees found</h3>
+              <p className="text-slate-400 text-sm">
+                {search ? 'Try adjusting your search terms.' : 'No verified employees available yet.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {employees.map(emp => (
+                <div key={emp.id} className="bg-slate-900 border border-white/10 hover:border-blue-500/30 rounded-2xl p-5 transition-all group">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-300 font-bold text-lg">
+                        {emp.full_name?.charAt(0).toUpperCase() || 'E'}
+                      </div>
+                      <div>
+                        <div className="text-white font-semibold">{emp.full_name}</div>
+                        <div className="text-slate-400 text-sm">{emp.designation}</div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Building2 className="w-3 h-3 text-slate-500" />
+                          <span className="text-slate-400 text-xs">{emp.company}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-                      <span className="text-white font-bold text-sm">{emp.trust_score}</span>
+                    <div className="text-right">
+                      <div className="flex items-center gap-1">
+                        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                        <span className="text-white font-bold text-sm">{emp.trust_score || 0}</span>
+                      </div>
+                      <div className="text-slate-500 text-xs">Trust Score</div>
                     </div>
-                    <div className="text-slate-500 text-xs">Trust Score</div>
+                  </div>
+                  <div className="flex items-center gap-2 mb-4">
+                    {emp.linkedin_verified && (
+                      <span className="bg-blue-500/20 text-blue-300 rounded-full px-2.5 py-0.5 text-xs flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> LinkedIn Verified
+                      </span>
+                    )}
+                    {emp.company_email_verified && (
+                      <span className="bg-emerald-500/20 text-emerald-300 rounded-full px-2.5 py-0.5 text-xs flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Work Email Verified
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-slate-400 text-xs">
+                      <span className="text-emerald-400 font-medium">{emp.successful_referrals || 0}</span>/{emp.total_referrals || 0} placed
+                    </div>
+                    <button
+                      onClick={() => setSelectedEmployee(emp)}
+                      disabled={sending === emp.id}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-60"
+                    >
+                      {sending === emp.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
+                      Request Referral
+                    </button>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-1.5 mb-4">
-                  {emp.skills.map(s => (
-                    <span key={s} className="bg-slate-800 text-slate-300 rounded-full px-2.5 py-0.5 text-xs">{s}</span>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-slate-400 text-xs">
-                    <span className="text-emerald-400 font-medium">{emp.placed}</span>/{emp.referrals} placed
-                  </div>
-                  <button
-                    onClick={() => setSelectedEmployee(emp)}
-                    disabled={sending === emp.id}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-all disabled:opacity-60"
-                  >
-                    {sending === emp.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MessageSquare className="w-3.5 h-3.5" />}
-                    Request Referral
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

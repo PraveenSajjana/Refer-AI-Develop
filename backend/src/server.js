@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 
 const { testConnection } = require('./config/database');
@@ -50,6 +51,9 @@ app.use('/api/resume', resumeRoutes);
 app.use('/api/community', communityRoutes);
 app.use('/api/internships', internshipRoutes);
 app.use('/api/badges', badgeRoutes);
+// Serve uploaded files statically
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {
