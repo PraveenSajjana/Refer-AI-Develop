@@ -45,6 +45,11 @@ if (role === 'employee') {
       token,
     });
   } catch (error) {
+     console.error("========== REGISTER ERROR ==========");
+     console.log("Error message:", error);
+  console.error(error.message);
+  console.error(error.stack);
+  console.error("=====================================");
     console.error('Register error:', error);
     res.status(500).json({ error: 'Registration failed' });
   }
