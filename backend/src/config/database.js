@@ -1,12 +1,24 @@
-const mysql = require('mysql2/promise');
-require('dotenv').config();
+const mysql = require("mysql2/promise");
+const fs = require("fs");
+const path = require("path");
+require("dotenv").config();
+
+const ssl =
+  process.env.DB_SSL === "true"
+    ? {
+        ca: fs.readFileSync(path.join(__dirname, "../../certs/ca.pem")),
+      }
+    : undefined;
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || "localhost",
   port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  database: process.env.DB_NAME || 'referai',
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "referai",
+
+  ssl,
+
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
@@ -17,10 +29,10 @@ const pool = mysql.createPool({
 async function testConnection() {
   try {
     const connection = await pool.getConnection();
-    console.log('MySQL Database connected successfully');
+    console.log("MySQL Database connected successfully");
     connection.release();
   } catch (error) {
-    console.error('Database connection failed:', error.message);
+    console.error("Database connection failed:", error);
     process.exit(1);
   }
 }
