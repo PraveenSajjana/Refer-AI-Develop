@@ -26,12 +26,14 @@ router.get('/candidate', authMiddleware, async (req, res) => {
 // Create/Update candidate profile
 router.post('/candidate', authMiddleware, async (req, res) => {
   try {
+    console.log("/candidate req: ", req.body);
+    
     const [existing] = await pool.query(
       'SELECT id FROM candidate_profiles WHERE user_id = ?',
       [req.user.id]
     );
 
-    const fields = ['phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url', 'headline', 'bio', 'years_experience', 'current_role_title', 'current_company', 'resume_url', 'resume_score', 'linkedin_score', 'ats_score', 'assessment_score', 'interview_score', 'profile_completeness', 'referral_readiness_score', 'recommendation'];
+    const fields = ['phone', 'location', 'linkedin_url', 'github_url', 'portfolio_url', 'headline', 'bio', 'years_experience', 'current_role_title', 'current_company', 'skills', 'resume_url', 'resume_score', 'linkedin_score', 'ats_score', 'assessment_score', 'interview_score', 'profile_completeness', 'referral_readiness_score', 'recommendation'];
 
     if (existing.length > 0) {
       // Update
@@ -97,6 +99,12 @@ router.post('/employee', authMiddleware, async (req, res) => {
   try {
     const { company, designation, company_email, linkedin_url } = req.body;
 
+    // Update user role to employee if not already
+    await pool.query(
+      "UPDATE users SET role = 'employee' WHERE id = ?",
+      [req.user.id]
+    );
+
     const [existing] = await pool.query(
       'SELECT id FROM employee_profiles WHERE user_id = ?',
       [req.user.id]
@@ -113,7 +121,8 @@ router.post('/employee', authMiddleware, async (req, res) => {
     } else {
       const id = uuidv4();
       await pool.query(
-        'INSERT INTO employee_profiles (id, user_id, company, designation, company_email, linkedin_url) VALUES (?, ?, ?, ?, ?, ?)',
+        `INSERT INTO employee_profiles (id, user_id, company, designation, company_email, linkedin_url, trust_score, total_referrals, successful_referrals, linkedin_verified, company_email_verified)
+         VALUES (?, ?, ?, ?, ?, ?, 50, 0, 0, FALSE, FALSE)`,
         [id, req.user.id, company, designation, company_email || null, linkedin_url || null]
       );
 
@@ -299,6 +308,51 @@ router.delete('/certifications/:id', authMiddleware, async (req, res) => {
     res.json({ message: 'Deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete certification' });
+  }
+});
+
+// Get student profile
+router.get('/student', authMiddleware, async (req, res) => {
+  try {
+    const [profiles] = await pool.query('SELECT * FROM student_profiles WHERE user_id = ?', [req.user.id]);
+    res.json(profiles[0] || null);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to get student profile' });
+  }
+});
+
+// Create/Update student profile
+router.post('/student', authMiddleware, async (req, res) => {
+  try {
+    const { college, degree, branch, graduation_year, cgpa, github_url, linkedin_url, resume_url, skills } = req.body;
+
+    const [existing] = await pool.query('SELECT id FROM student_profiles WHERE user_id = ?', [req.user.id]);
+
+    if (existing.length > 0) {
+      await pool.query(
+        `UPDATE student_profiles SET college = ?, degree = ?, branch = ?, graduation_year = ?,
+         cgpa = ?, github_url = ?, linkedin_url = ?, resume_url = ?, skills = ? WHERE user_id = ?`,
+        [college || null, degree || null, branch || null, graduation_year || null,
+         cgpa || null, github_url || null, linkedin_url || null, resume_url || null,
+         JSON.stringify(skills || []), req.user.id]
+      );
+    } else {
+      const { v4: uuidv4 } = require('uuid');
+      const id = uuidv4();
+      await pool.query(
+        `INSERT INTO student_profiles (id, user_id, college, degree, branch, graduation_year, cgpa, github_url, linkedin_url, resume_url, skills)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [id, req.user.id, college || null, degree || null, branch || null,
+         graduation_year || null, cgpa || null, github_url || null,
+         linkedin_url || null, resume_url || null, JSON.stringify(skills || [])]
+      );
+    }
+
+    const [updated] = await pool.query('SELECT * FROM student_profiles WHERE user_id = ?', [req.user.id]);
+    res.json(updated[0]);
+  } catch (error) {
+    console.error('Save student profile error:', error);
+    res.status(500).json({ error: 'Failed to save student profile' });
   }
 });
 

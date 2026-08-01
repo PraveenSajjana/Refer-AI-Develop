@@ -16,6 +16,8 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
   const [notifications, setNotifications] = useState({
     referral_updates: true,
     job_matches: true,
@@ -124,7 +126,8 @@ export default function SettingsPage() {
 
               <div className="border-t border-white/5 pt-5">
                 <h3 className="text-rose-400 font-semibold mb-3">Danger Zone</h3>
-                <button onClick={() => setShowDeleteConfirm(true)}
+                <p className="text-slate-500 text-xs mb-3">This will permanently delete your account, all referrals, profiles, and data. This cannot be undone.</p>
+              <button onClick={() => setShowDeleteConfirm(true)}
                   className="flex items-center gap-2 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 font-medium px-4 py-2 rounded-xl transition-all text-sm">
                   <Trash2 className="w-4 h-4" /> Delete Account
                 </button>
@@ -245,16 +248,44 @@ export default function SettingsPage() {
       </div>
 
       {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
-          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full">
-            <h3 className="text-white font-bold text-lg mb-2">Delete Account?</h3>
-            <p className="text-slate-400 text-sm mb-5">This action is irreversible. All your data, referrals, and progress will be permanently deleted.</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+            <h3 className="text-white font-bold text-xl mb-2">Delete Account?</h3>
+            <p className="text-slate-400 text-sm mb-4">This will permanently delete your account, all referrals, resume data, and activity. This <span className="text-rose-400 font-semibold">cannot be undone</span>.</p>
+            <div className="mb-4">
+              <label className="text-slate-300 text-sm mb-2 block">Type <span className="font-mono text-rose-400">DELETE</span> to confirm</label>
+              <input
+                type="text"
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                placeholder="DELETE"
+                className="w-full bg-slate-800 border border-rose-500/30 rounded-xl px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-rose-500/50 transition-all"
+              />
+            </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowDeleteConfirm(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl transition-all">
+              <button onClick={() => { setShowDeleteConfirm(false); setDeleteInput(''); }} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl transition-all">
                 Cancel
               </button>
-              <button className="flex-1 bg-rose-600 hover:bg-rose-500 text-white font-bold py-2.5 rounded-xl transition-all">
-                Delete
+              <button
+                disabled={deleteInput !== 'DELETE' || deleting}
+                onClick={async () => {
+                  if (deleteInput !== 'DELETE') return;
+                  setDeleting(true);
+                  try {
+                    const token = sessionStorage.getItem('token');
+                    const res = await fetch('http://localhost:3001/api/auth/delete-account', {
+                      method: 'DELETE',
+                      headers: { Authorization: `Bearer ${token}` },
+                    });
+                    if (res.ok) {
+                      await signOut();
+                    }
+                  } catch {}
+                  setDeleting(false);
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-500 disabled:opacity-40 text-white font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2">
+                {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Delete Forever
               </button>
             </div>
           </div>

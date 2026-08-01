@@ -3,7 +3,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { profilesApi } from '../lib/api';
 import {
   User, MapPin, Linkedin, Github, Globe, Briefcase, Plus, Trash2,
-  Save, Edit3, CheckCircle, Loader2, GraduationCap, Award, Code
+  Save, Edit3, CheckCircle, Loader2, GraduationCap, Award, Code,
+  Building2, Mail, BadgeCheck
 } from 'lucide-react';
 
 type Section = 'basic' | 'skills' | 'education' | 'experience' | 'projects' | 'certifications';
@@ -14,6 +15,7 @@ export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
   const [activeSection, setActiveSection] = useState<Section>('basic');
   const [profile, setProfile] = useState<any>({});
+  const [employeeProfile, setEmployeeProfile] = useState<any>({});
   const [education, setEducation] = useState<any[]>([]);
   const [experience, setExperience] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
@@ -22,12 +24,25 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  const isEmployee = user?.role === 'employee';
+  const isStudent = user?.role === 'student';
+
   useEffect(() => {
     if (!user) return;
 
-    profilesApi.getCandidate().then(data => {
-      if (data) setProfile(data);
-    }).catch(() => {});
+    if (isEmployee) {
+      profilesApi.getEmployee().then(data => { if (data) setEmployeeProfile(data); }).catch(() => {});
+    } else if (isStudent) {
+      // Load student profile
+      const token = sessionStorage.getItem('token');
+      fetch('http://localhost:3001/api/profiles/student', { headers: { Authorization: `Bearer ${token}` } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setProfile(data); })
+        .catch(() => {});
+    } else {
+      // candidate
+      profilesApi.getCandidate().then(data => { if (data) setProfile(data); }).catch(() => {});
+    }
 
     profilesApi.getEducation().then(data => setEducation(data || [])).catch(() => setEducation([]));
     profilesApi.getExperience().then(data => setExperience(data || [])).catch(() => setExperience([]));
@@ -39,7 +54,29 @@ export default function ProfilePage() {
     if (!user) return;
     setSaving(true);
     try {
-      await profilesApi.saveCandidate(profile);
+      if (isEmployee) {
+        await profilesApi.saveEmployee({
+          company: employeeProfile.company,
+          designation: employeeProfile.designation,
+          company_email: employeeProfile.company_email,
+          linkedin_url: employeeProfile.linkedin_url,
+        });
+      } else if (isStudent) {
+        const token = sessionStorage.getItem('token');
+        await fetch('http://localhost:3001/api/profiles/student', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            ...profile,
+            skills: Array.isArray(profile.skills) ? profile.skills : [],
+          }),
+        });
+      } else {
+        await profilesApi.saveCandidate({
+          ...profile,
+          skills: Array.isArray(profile.skills) ? profile.skills : [],
+        });
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (error) {
@@ -186,7 +223,11 @@ export default function ProfilePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Your Profile</h1>
-          <p className="text-slate-400 text-sm mt-1">Build a strong profile to maximize your Referral Readiness Score</p>
+          <p className="text-slate-400 text-sm mt-1">
+            {isEmployee
+              ? 'Update your company info and professional details'
+              : 'Build a strong profile to maximize your Referral Readiness Score'}
+          </p>
         </div>
         <button
           onClick={saveProfile}
@@ -221,6 +262,104 @@ export default function ProfilePage() {
           {activeSection === 'basic' && (
             <div className="space-y-5">
               <h2 className="text-white font-bold text-lg">Basic Information</h2>
+
+              {/* Student-specific fields */}
+              {isStudent && (
+                <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-cyan-300 text-sm font-semibold">
+                    <GraduationCap className="w-4 h-4" /> Student Details
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {[
+                      { label: 'College / University', field: 'college', placeholder: 'IIT Bombay' },
+                      { label: 'Degree', field: 'degree', placeholder: 'B.Tech' },
+                      { label: 'Branch / Major', field: 'branch', placeholder: 'Computer Science' },
+                      { label: 'Graduation Year', field: 'graduation_year', placeholder: '2025', type: 'number' },
+                      { label: 'CGPA', field: 'cgpa', placeholder: '8.5', type: 'number' },
+                    ].map(({ label, field, placeholder, type }) => (
+                      <div key={field}>
+                        <label className="text-slate-300 text-sm font-medium mb-2 block">{label}</label>
+                        <input
+                          type={type ?? 'text'}
+                          value={profile[field] ?? ''}
+                          onChange={e => setProfile((p: any) => ({ ...p, [field]: e.target.value }))}
+                          placeholder={placeholder}
+                          className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Employee-specific fields */}
+              {isEmployee && (
+                <div className="bg-blue-500/5 border border-blue-500/20 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center gap-2 text-blue-300 text-sm font-semibold">
+                    <Building2 className="w-4 h-4" /> Employee Details
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 block">Company</label>
+                      <input
+                        type="text"
+                        value={employeeProfile.company ?? ''}
+                        onChange={e => setEmployeeProfile((p: any) => ({ ...p, company: e.target.value }))}
+                        placeholder="e.g. Google"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 block">Designation</label>
+                      <input
+                        type="text"
+                        value={employeeProfile.designation ?? ''}
+                        onChange={e => setEmployeeProfile((p: any) => ({ ...p, designation: e.target.value }))}
+                        placeholder="e.g. Senior Software Engineer"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 flex items-center gap-2">
+                        <Mail className="w-3.5 h-3.5" /> Company Email
+                      </label>
+                      <input
+                        type="email"
+                        value={employeeProfile.company_email ?? ''}
+                        onChange={e => setEmployeeProfile((p: any) => ({ ...p, company_email: e.target.value }))}
+                        placeholder="you@company.com"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-slate-300 text-sm font-medium mb-2 flex items-center gap-2">
+                        <Linkedin className="w-3.5 h-3.5" /> LinkedIn URL
+                      </label>
+                      <input
+                        type="url"
+                        value={employeeProfile.linkedin_url ?? ''}
+                        onChange={e => setEmployeeProfile((p: any) => ({ ...p, linkedin_url: e.target.value }))}
+                        placeholder="linkedin.com/in/..."
+                        className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {employeeProfile.linkedin_verified && (
+                      <span className="bg-blue-500/15 border border-blue-500/20 text-blue-300 rounded-full px-2.5 py-0.5 text-xs flex items-center gap-1">
+                        <BadgeCheck className="w-3 h-3" /> LinkedIn Verified
+                      </span>
+                    )}
+                    {employeeProfile.company_email_verified && (
+                      <span className="bg-emerald-500/15 border border-emerald-500/20 text-emerald-300 rounded-full px-2.5 py-0.5 text-xs flex items-center gap-1">
+                        <BadgeCheck className="w-3 h-3" /> Work Email Verified
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Shared basic info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
                   { label: 'Full Name', field: 'full_name', placeholder: 'Your full name', type: 'text', fromUser: true },

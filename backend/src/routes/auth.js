@@ -136,4 +136,38 @@ router.put('/me', authMiddleware, async (req, res) => {
   }
 });
 
+
+// Delete account
+router.delete('/delete-account', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    // Delete in FK-safe order
+    await pool.query('DELETE FROM active_sessions WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM session_events WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM notifications WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM user_badges WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM subscriptions WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM resume_analyses WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM forum_replies WHERE author_id = ?', [userId]);
+    await pool.query('DELETE FROM forum_posts WHERE author_id = ?', [userId]);
+    await pool.query('DELETE FROM assessments WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM interview_sessions WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM education WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM work_experience WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM projects WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM certifications WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM referral_requests WHERE candidate_id = ? OR employee_id = ?', [userId, userId]);
+    await pool.query('DELETE FROM candidate_profiles WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM employee_profiles WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM student_profiles WHERE user_id = ?', [userId]);
+    await pool.query('DELETE FROM jobs WHERE posted_by = ?', [userId]);
+    await pool.query('DELETE FROM internships WHERE posted_by = ?', [userId]);
+    await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    console.error('Delete account error:', error);
+    res.status(500).json({ error: 'Failed to delete account' });
+  }
+});
+
 module.exports = router;

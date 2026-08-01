@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useRouter, useNavigate } from '../lib/router';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Briefcase, LayoutDashboard, User, Users, Search, FileText,
   MessageSquare, Award, Bell, Settings, LogOut, Menu, X,
   ChevronDown, TrendingUp, Building2, GraduationCap, BarChart2,
-  Zap, Target, BookOpen,
-  AlertTriangle
+  Zap, Target, BookOpen, AlertTriangle
 } from 'lucide-react';
 
 interface NavItem {
@@ -18,7 +17,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard', roles: ['candidate', 'employee', 'recruiter', 'admin', 'student'] },
-  { label: 'My Profile', icon: User, path: '/profile', roles: ['candidate', 'student'] },
+  { label: 'My Profile', icon: User, path: '/profile', roles: ['candidate', 'employee', 'student'] },
   { label: 'Resume & ATS', icon: FileText, path: '/resume', roles: ['candidate', 'student'] },
   { label: 'Referrals', icon: Users, path: '/referrals', roles: ['candidate', 'employee'] },
   { label: 'Mock Interview', icon: MessageSquare, path: '/interview', roles: ['candidate', 'student'] },
@@ -39,9 +38,49 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const visibleNav = NAV_ITEMS.filter(item => user && item.roles.includes(user.role));
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setNotifOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  async function loadNotifications() {
+    if (!user) return;
+    setNotifLoading(true);
+    try {
+      const token = sessionStorage.getItem('token');
+      const res = await fetch('http://localhost:3001/api/notifications', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setNotifications(data);
+      }
+    } catch {}
+    setNotifLoading(false);
+  }
+
+  async function markAllRead() {
+    try {
+      const token = sessionStorage.getItem('token');
+      await fetch('http://localhost:3001/api/notifications/read-all', {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch {}
+  }
 
   async function confirmSignOut() {
     await signOut();
@@ -59,7 +98,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen bg-slate-950 flex">
-
+      {/* Logout Confirmation Modal */}
       {showLogoutModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-6 shadow-2xl">
@@ -73,16 +112,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowLogoutModal(false)} className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl transition-all">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium py-2.5 rounded-xl transition-all"
+              >
                 Cancel
               </button>
-              <button onClick={confirmSignOut} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 rounded-xl transition-all">
+              <button
+                onClick={confirmSignOut}
+                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-medium py-2.5 rounded-xl transition-all"
+              >
                 Sign Out
               </button>
             </div>
           </div>
         </div>
       )}
+
       {/* Sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/60 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -179,45 +225,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
             <div className="hidden sm:block">
               <h1 className="text-white font-semibold text-lg capitalize">
-                {currentPath.replace('/', '').replace(/-/g, ' ') || 'Dashboard'}
+                {currentPath.replace('/','').replace(/-/g, ' ') || 'Dashboard'}
               </h1>
             </div>
           </div>
           <div className="flex items-center gap-3">
             {/* Notifications */}
             <div className="relative">
+              <div ref={notifRef} className="relative">
               <button
-                onClick={() => setNotifOpen(!notifOpen)}
+                onClick={() => { setNotifOpen(v => { if (!v) loadNotifications(); return !v; }); }}
                 className="relative w-9 h-9 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center text-slate-400 hover:text-white transition-all"
               >
                 <Bell className="w-4 h-4" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                {notifications.some(n => !n.is_read) && (
+                  <span className="absolute top-1 right-1 w-2 h-2 bg-blue-500 rounded-full" />
+                )}
               </button>
               {notifOpen && (
                 <div className="absolute right-0 top-12 w-80 bg-slate-900 border border-white/10 rounded-2xl shadow-2xl z-50 overflow-hidden">
                   <div className="p-4 border-b border-white/5 flex items-center justify-between">
                     <span className="text-white font-semibold">Notifications</span>
-                    <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-white">
-                      <X className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {notifications.some(n => !n.is_read) && (
+                        <button onClick={markAllRead} className="text-blue-400 hover:text-blue-300 text-xs">Mark all read</button>
+                      )}
+                      <button onClick={() => setNotifOpen(false)} className="text-slate-400 hover:text-white">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="p-4 space-y-3">
-                    {[
-                      { msg: 'Your referral request was accepted!', time: '2m ago', type: 'success' },
-                      { msg: 'Resume analysis complete — Score: 78/100', time: '1h ago', type: 'info' },
-                      { msg: 'New job match found: SDE-2 @ Google', time: '3h ago', type: 'info' },
-                    ].map(({ msg, time, type }) => (
-                      <div key={msg} className="flex items-start gap-3 p-3 bg-white/5 rounded-xl hover:bg-white/8 cursor-pointer transition-all">
-                        <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${type === 'success' ? 'bg-emerald-400' : 'bg-blue-400'}`} />
-                        <div>
-                          <p className="text-white text-sm">{msg}</p>
-                          <p className="text-slate-500 text-xs mt-1">{time}</p>
-                        </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifLoading ? (
+                      <div className="p-6 text-center text-slate-400 text-sm">Loading...</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="p-6 text-center text-slate-500 text-sm">No notifications yet</div>
+                    ) : (
+                      <div className="p-3 space-y-1">
+                        {notifications.map((n: any) => (
+                          <div key={n.id} className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer transition-all hover:bg-white/8 ${n.is_read ? '' : 'bg-white/5'}`}>
+                            <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                              n.type === 'success' ? 'bg-emerald-400' : n.type === 'warning' ? 'bg-amber-400' : n.type === 'error' ? 'bg-rose-400' : 'bg-blue-400'
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm ${n.is_read ? 'text-slate-400' : 'text-white'}`}>{n.message}</p>
+                              <p className="text-slate-500 text-xs mt-0.5">{new Date(n.created_at).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               )}
+              </div>
             </div>
 
             {/* Plan badge */}

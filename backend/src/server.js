@@ -17,6 +17,8 @@ const resumeRoutes = require('./routes/resume');
 const communityRoutes = require('./routes/community');
 const internshipRoutes = require('./routes/internships');
 const badgeRoutes = require('./routes/badges');
+const notificationRoutes = require('./routes/notifications');
+const talentRoutes = require('./routes/talent');
 
 const app = express();
 
@@ -53,7 +55,8 @@ app.use('/api/internships', internshipRoutes);
 app.use('/api/badges', badgeRoutes);
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/talent', talentRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
