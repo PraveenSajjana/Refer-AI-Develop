@@ -32,7 +32,9 @@ async function testConnection() {
     console.log("MySQL Database connected successfully");
     connection.release();
   } catch (error) {
-    console.error("Database connection failed:", error);
+    // console.error("Database connection failed:", error);
+    console.error("Database connection failed:");
+console.error(error);
     process.exit(1);
   }
 }
