@@ -1,4 +1,6 @@
-const API_BASE = 'http://localhost:3001/api';
+import config from "../config";
+
+const API_BASE = config.apiUrl;
 
 class ApiClient {
   private getToken(): string | null {

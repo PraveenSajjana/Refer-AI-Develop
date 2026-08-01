@@ -6,6 +6,8 @@ import {
   LogOut, Eye, EyeOff, Zap, Crown, ArrowRight, CreditCard
 } from 'lucide-react';
 import { Link } from '../lib/router';
+import config from "../config";
+
 
 type Tab = 'profile' | 'notifications' | 'security' | 'plan';
 
@@ -273,7 +275,7 @@ export default function SettingsPage() {
                   setDeleting(true);
                   try {
                     const token = sessionStorage.getItem('token');
-                    const res = await fetch('http://localhost:3001/api/auth/delete-account', {
+                    const res = await fetch(`${config.apiUrl}/auth/delete-account`, {
                       method: 'DELETE',
                       headers: { Authorization: `Bearer ${token}` },
                     });

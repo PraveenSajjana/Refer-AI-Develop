@@ -3,6 +3,8 @@ import {
   Search, Star, MapPin, ChevronDown, Loader2, Users, CheckCircle,
   Code, Briefcase, X, Mail, Github, Linkedin, Globe
 } from 'lucide-react';
+import config from "../config";
+
 
 function parseJSON(val: any, fallback: any = []) {
   if (Array.isArray(val)) return val;
@@ -28,7 +30,7 @@ export default function TalentSearchPage() {
     if (recFilter) params.set('recommendation', recFilter);
 
     const token = sessionStorage.getItem('token');
-    fetch(`http://localhost:3001/api/talent?${params}`, {
+    fetch(`${config.apiUrl}/talent?${params}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then(r => r.ok ? r.json() : [])

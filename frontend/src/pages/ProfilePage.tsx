@@ -6,6 +6,7 @@ import {
   Save, Edit3, CheckCircle, Loader2, GraduationCap, Award, Code,
   Building2, Mail, BadgeCheck
 } from 'lucide-react';
+import config from "../config";
 
 type Section = 'basic' | 'skills' | 'education' | 'experience' | 'projects' | 'certifications';
 
@@ -35,7 +36,7 @@ export default function ProfilePage() {
     } else if (isStudent) {
       // Load student profile
       const token = sessionStorage.getItem('token');
-      fetch('http://localhost:3001/api/profiles/student', { headers: { Authorization: `Bearer ${token}` } })
+      fetch(`${config.apiUrl}/profiles/student`, { headers: { Authorization: `Bearer ${token}` } })
         .then(r => r.ok ? r.json() : null)
         .then(data => { if (data) setProfile(data); })
         .catch(() => {});
@@ -63,7 +64,7 @@ export default function ProfilePage() {
         });
       } else if (isStudent) {
         const token = sessionStorage.getItem('token');
-        await fetch('http://localhost:3001/api/profiles/student', {
+        await fetch(`${config.apiUrl}/profiles/student`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({

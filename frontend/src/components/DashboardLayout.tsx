@@ -7,6 +7,7 @@ import {
   ChevronDown, TrendingUp, Building2, GraduationCap, BarChart2,
   Zap, Target, BookOpen, AlertTriangle
 } from 'lucide-react';
+import config from "../config";
 
 interface NavItem {
   label: string;
@@ -60,7 +61,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setNotifLoading(true);
     try {
       const token = sessionStorage.getItem('token');
-      const res = await fetch('http://localhost:3001/api/notifications', {
+      const res = await fetch(`${config.apiUrl}/notifications`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
@@ -74,7 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   async function markAllRead() {
     try {
       const token = sessionStorage.getItem('token');
-      await fetch('http://localhost:3001/api/notifications/read-all', {
+      await fetch(`${config.apiUrl}/notifications/read-all`, {
         method: 'PUT',
         headers: { Authorization: `Bearer ${token}` },
       });
